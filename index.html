@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calcolo Buoni Pasto</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #1a1a1a;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+        }
+
+        .summary {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background-color: #e9ecef;
+            padding: 15px 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .summary-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .summary-item .label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .summary-item .value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        #vouchers-used.value {
+            color: #28a745;
+        }
+
+        #difference-value.value {
+            color: #dc3545;
+        }
+
+        .input-area {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        #expense-input {
+            flex-grow: 1;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 1em;
+        }
+
+        #add-button {
+            padding: 12px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        #add-button:hover {
+            background-color: #0056b3;
+        }
+
+        .table-container {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        #expenses-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .expense-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .expense-item:last-child {
+            border-bottom: none;
+        }
+
+        .expense-value {
+            font-weight: bold;
+        }
+
+        .delete-button {
+            background: none;
+            border: none;
+            color: #dc3545;
+            font-size: 1.2em;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .delete-button:hover {
+            color: #a71d2a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Calcolo Buoni Pasto</h1>
+        <div class="summary">
+            <div class="summary-item">
+                <span class="label">Totale</span>
+                <span id="total-value" class="value">0.00 €</span>
+            </div>
+            <div class="summary-item">
+                <span class="label">Buoni Usati</span>
+                <span id="vouchers-used" class="value">0</span>
+            </div>
+            <div class="summary-item">
+                <span class="label">Differenza</span>
+                <span id="difference-value" class="value">0.00 €</span>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <input type="number" id="expense-input" placeholder="Inserisci spesa" min="0" step="0.01">
+            <button id="add-button">Aggiungi</button>
+        </div>
+
+        <div class="table-container">
+            <ul id="expenses-list"></ul>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const expenseInput = document.getElementById('expense-input');
+            const addButton = document.getElementById('add-button');
+            const expensesList = document.getElementById('expenses-list');
+            const totalValueSpan = document.getElementById('total-value');
+            const vouchersUsedSpan = document.getElementById('vouchers-used');
+            const differenceValueSpan = document.getElementById('difference-value');
+            const VOUCHER_VALUE = 8;
+            let expenses = [];
+
+            // Funzione per calcolare e aggiornare i valori riassuntivi
+            const updateSummary = () => {
+                const total = expenses.reduce((acc, val) => acc + val, 0);
+                const vouchersUsed = Math.floor(total / VOUCHER_VALUE);
+                const difference = total % VOUCHER_VALUE;
+
+                totalValueSpan.textContent = `${total.toFixed(2)} €`;
+                vouchersUsedSpan.textContent = vouchersUsed;
+                differenceValueSpan.textContent = `${difference.toFixed(2)} €`;
+            };
+
+            // Funzione per visualizzare la lista delle spese
+            const renderExpenses = () => {
+                expensesList.innerHTML = '';
+                expenses.forEach((expense, index) => {
+                    const listItem = document.createElement('li');
+                    listItem.classList.add('expense-item');
+                    listItem.innerHTML = `
+                        <span class="expense-value">${expense.toFixed(2)} €</span>
+                        <button class="delete-button" data-index="${index}">🗑️</button>
+                    `;
+                    expensesList.prepend(listItem);
+                });
+                updateSummary();
+            };
+
+            // Gestione dell'aggiunta di una nuova spesa
+            addButton.addEventListener('click', () => {
+                const inputValue = parseFloat(expenseInput.value);
+                if (isNaN(inputValue) || inputValue <= 0) {
+                    alert('Inserisci un valore numerico valido e maggiore di zero.');
+                    return;
+                }
+                expenses.push(inputValue);
+                expenseInput.value = '';
+                renderExpenses();
+            });
+
+            // Gestione dell'eliminazione di una spesa
+            expensesList.addEventListener('click', (event) => {
+                if (event.target.classList.contains('delete-button')) {
+                    const index = event.target.getAttribute('data-index');
+                    expenses.splice(expenses.length - 1 - index, 1);
+                    renderExpenses();
+                }
+            });
+
+            // Inizializzazione della pagina
+            renderExpenses();
+        });
+    </script>
+</body>
+</html>
